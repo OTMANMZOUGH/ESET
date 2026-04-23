@@ -36,11 +36,33 @@ class BookController extends Controller
             'word' => 'required|string',
         ]);
 
-        // In a real app, you'd call a translation API
-        // For now, return a placeholder
+        $word = $validated['word'];
+        
+        try {
+            // Using MyMemory API (free, no key required for up to 500 requests/day)
+            $response = \Illuminate\Support\Facades\Http::get('https://api.mymemory.translated.net/get', [
+                'q' => $word,
+                'langpair' => 'es|en'
+            ]);
+
+            if ($response->successful()) {
+                $data = $response->json();
+                $translation = $data['responseData']['translatedText'] ?? 'Translation not found';
+                
+                return ApiResponse::success([
+                    'word' => $word,
+                    'translation' => $translation,
+                    'bookId' => $id,
+                ]);
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Translation API error: ' . $e->getMessage());
+        }
+
+        // Fallback if API fails
         return ApiResponse::success([
-            'word' => $validated['word'],
-            'translation' => 'Translation: ' . $validated['word'],
+            'word' => $word,
+            'translation' => '[Could not translate: ' . $word . ']',
             'bookId' => $id,
         ]);
     }
