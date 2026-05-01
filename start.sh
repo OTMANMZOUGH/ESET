@@ -12,7 +12,7 @@ sleep 2
 
 # Start frontend in background
 echo "⚛️  Starting Next.js frontend on http://localhost:3000..."
-cd ../frontend && npm run dev &
+cd frontend && npm run dev &
 FRONTEND_PID=$!
 
 echo ""
