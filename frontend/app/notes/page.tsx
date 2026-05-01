@@ -3,16 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import Navbar from '@/components/Navbar';
+import LoadingSpinner from '@/components/LoadingSpinner';
 import { notesApi } from '@/lib/api';
-import Link from 'next/link';
 
-interface Note {
-  id: number;
-  title: string;
-  content: string;
-  created_at: string;
-  updated_at: string;
-}
+interface Note { id: number; title: string; content: string; created_at: string; updated_at: string; }
 
 function NotesContent() {
   const { token } = useAuth();
@@ -21,37 +16,33 @@ function NotesContent() {
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [formData, setFormData] = useState({ title: '', content: '' });
   const [saving, setSaving] = useState(false);
+  const [showEditor, setShowEditor] = useState(false);
 
   const loadNotes = async () => {
     if (!token) return;
-
     try {
       const response = await notesApi.getAll(token);
       setNotes(response.data);
-    } catch (error) {
-      console.error('Error loading notes:', error);
-    } finally {
-      setLoading(false);
-    }
+    } catch (error) { console.error('Error loading notes:', error); }
+    finally { setLoading(false); }
   };
 
-  useEffect(() => {
-    loadNotes();
-  }, [token]);
+  useEffect(() => { loadNotes(); }, [token]);
 
   const handleCreate = () => {
     setEditingNote(null);
     setFormData({ title: '', content: '' });
+    setShowEditor(true);
   };
 
   const handleEdit = (note: Note) => {
     setEditingNote(note);
     setFormData({ title: note.title, content: note.content });
+    setShowEditor(true);
   };
 
   const handleSave = async () => {
     if (!token) return;
-
     setSaving(true);
     try {
       if (editingNote) {
@@ -59,102 +50,65 @@ function NotesContent() {
       } else {
         await notesApi.create(token, formData);
       }
-
       setFormData({ title: '', content: '' });
       setEditingNote(null);
+      setShowEditor(false);
       await loadNotes();
-    } catch (error) {
-      console.error('Error saving note:', error);
-      alert('Error saving note');
-    } finally {
-      setSaving(false);
-    }
+    } catch (error) { console.error('Error saving note:', error); alert('Error saving note'); }
+    finally { setSaving(false); }
   };
 
   const handleDelete = async (id: number) => {
-    if (!token || !confirm('Are you sure you want to delete this note?')) return;
-
-    try {
-      await notesApi.delete(token, id);
-      await loadNotes();
-    } catch (error) {
-      console.error('Error deleting note:', error);
-      alert('Error deleting note');
-    }
+    if (!token || !confirm('Delete this note?')) return;
+    try { await notesApi.delete(token, id); await loadNotes(); }
+    catch (error) { console.error('Error deleting:', error); }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center">
-              <Link href="/dashboard" className="text-2xl font-bold text-indigo-600">
-                ESET
-              </Link>
-              <span className="ml-4 text-gray-600">/ Writing Notes</span>
-            </div>
-            <div className="flex items-center">
-              <button
-                onClick={handleCreate}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-              >
-                + New Note
-              </button>
-            </div>
-          </div>
-        </div>
-      </nav>
+    <div className="min-h-screen bg-[var(--cream)] tile-pattern">
+      <Navbar breadcrumb="Writing Notes" rightContent={
+        <button onClick={handleCreate}
+          className="px-4 py-2 bg-gradient-to-r from-[var(--terracotta)] to-[var(--terracotta-light)] text-white text-sm font-semibold rounded-xl shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all">
+          + New Note
+        </button>
+      } />
 
-      <main className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+      <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Notes List */}
           <div className="lg:col-span-1">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Your Notes</h2>
+            <h2 className="font-[family-name:var(--font-playfair)] text-xl font-bold text-[var(--navy)] mb-4">Your Notes</h2>
 
             {loading ? (
-              <div className="text-gray-500">Loading notes...</div>
+              <LoadingSpinner size="sm" message="Loading..." />
             ) : notes.length > 0 ? (
-              <div className="space-y-2">
+              <div className="space-y-3 stagger-children">
                 {notes.map(note => (
-                  <div
-                    key={note.id}
-                    className={`bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md transition-shadow ${
-                      editingNote?.id === note.id ? 'ring-2 ring-indigo-500' : ''
-                    }`}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div onClick={() => handleEdit(note)} className="flex-1">
-                        <h3 className="font-semibold text-gray-900 mb-1">
-                          {note.title || 'Untitled'}
-                        </h3>
-                        <p className="text-sm text-gray-600 line-clamp-2">
-                          {note.content}
-                        </p>
-                        <p className="text-xs text-gray-400 mt-2">
-                          {new Date(note.updated_at).toLocaleDateString()}
-                        </p>
+                  <div key={note.id}
+                    className={`glass rounded-xl p-4 cursor-pointer border transition-all animate-fade-in-up card-hover ${
+                      editingNote?.id === note.id ? 'border-[var(--terracotta)] shadow-md' : 'border-[var(--border)]'
+                    }`}>
+                    <div className="flex justify-between items-start gap-2">
+                      <div onClick={() => handleEdit(note)} className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-[var(--navy)] mb-1 truncate">{note.title || 'Untitled'}</h3>
+                        <p className="text-sm text-[var(--warm-gray)] line-clamp-2 leading-relaxed">{note.content}</p>
+                        <p className="text-xs text-[var(--text-muted)] mt-2">{new Date(note.updated_at).toLocaleDateString()}</p>
                       </div>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(note.id);
-                        }}
-                        className="ml-2 text-red-600 hover:text-red-800"
-                      >
-                        🗑
+                      <button onClick={(e) => { e.stopPropagation(); handleDelete(note.id); }}
+                        className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--error)] hover:bg-[var(--error-bg)] transition-all flex-shrink-0">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
                       </button>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="bg-white rounded-lg shadow p-6 text-center">
-                <p className="text-gray-500 mb-4">No notes yet</p>
-                <button
-                  onClick={handleCreate}
-                  className="text-indigo-600 hover:text-indigo-800"
-                >
+              <div className="glass rounded-xl p-8 text-center border border-[var(--border)]">
+                <div className="text-3xl mb-3">📝</div>
+                <p className="text-[var(--warm-gray)] mb-3">No notes yet</p>
+                <button onClick={handleCreate} className="text-[var(--terracotta)] font-semibold text-sm hover:underline">
                   Create your first note
                 </button>
               </div>
@@ -163,67 +117,50 @@ function NotesContent() {
 
           {/* Editor */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-lg shadow-lg p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                {editingNote ? 'Edit Note' : 'New Note'}
-              </h2>
+            {showEditor || editingNote ? (
+              <div className="glass rounded-2xl p-6 sm:p-8 border border-[var(--border)] shadow-lg animate-scale-in">
+                <h2 className="font-[family-name:var(--font-playfair)] text-xl font-bold text-[var(--navy)] mb-5">
+                  {editingNote ? 'Edit Note' : 'New Note'}
+                </h2>
 
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Title
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    placeholder="Note title..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Content
-                  </label>
-                  <textarea
-                    value={formData.content}
-                    onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                    placeholder="Write in Spanish here..."
-                    rows={15}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
-                  />
-                </div>
-
-                <div className="flex gap-3">
-                  <button
-                    onClick={handleSave}
-                    disabled={saving || !formData.title.trim() || !formData.content.trim()}
-                    className="flex-1 py-2 px-4 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {saving ? 'Saving...' : 'Save Note'}
-                  </button>
-                  {(editingNote || formData.title || formData.content) && (
-                    <button
-                      onClick={() => {
-                        setFormData({ title: '', content: '' });
-                        setEditingNote(null);
-                      }}
-                      className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
-                    >
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-[var(--navy)] mb-1.5">Title</label>
+                    <input type="text" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                      placeholder="Note title..."
+                      className="w-full px-4 py-3 rounded-xl border border-[var(--border)] bg-white text-[var(--navy)] placeholder-[var(--text-muted)] input-glow transition-all" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-[var(--navy)] mb-1.5">Content</label>
+                    <textarea value={formData.content} onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                      placeholder="Write in Spanish here..."
+                      rows={14}
+                      className="w-full px-4 py-3 rounded-xl border border-[var(--border)] bg-white text-[var(--navy)] placeholder-[var(--text-muted)] input-glow transition-all font-[family-name:var(--font-playfair)] text-lg leading-relaxed resize-none" />
+                  </div>
+                  <div className="flex gap-3">
+                    <button onClick={handleSave} disabled={saving || !formData.title.trim() || !formData.content.trim()}
+                      className="flex-1 py-3 bg-gradient-to-r from-[var(--terracotta)] to-[var(--terracotta-light)] text-white font-semibold rounded-xl shadow-md hover:shadow-lg hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100">
+                      {saving ? 'Saving...' : 'Save Note'}
+                    </button>
+                    <button onClick={() => { setFormData({ title: '', content: '' }); setEditingNote(null); setShowEditor(false); }}
+                      className="px-6 py-3 bg-white border border-[var(--border)] text-[var(--warm-gray)] font-semibold rounded-xl hover:border-[var(--terracotta)] hover:text-[var(--terracotta)] transition-all">
                       Cancel
                     </button>
-                  )}
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="glass rounded-2xl p-12 text-center border border-[var(--border)] border-dashed">
+                <div className="text-4xl mb-4">✍️</div>
+                <h3 className="font-[family-name:var(--font-playfair)] text-xl font-bold text-[var(--navy)] mb-2">Start Writing</h3>
+                <p className="text-[var(--warm-gray)] mb-5">Select a note from the list or create a new one.</p>
+                <button onClick={handleCreate}
+                  className="px-6 py-2.5 bg-gradient-to-r from-[var(--terracotta)] to-[var(--terracotta-light)] text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition-all">
+                  + New Note
+                </button>
+              </div>
+            )}
           </div>
-        </div>
-
-        <div className="mt-8 text-center">
-          <Link href="/dashboard" className="text-indigo-600 hover:text-indigo-800">
-            ← Back to Dashboard
-          </Link>
         </div>
       </main>
     </div>
@@ -231,9 +168,5 @@ function NotesContent() {
 }
 
 export default function NotesPage() {
-  return (
-    <ProtectedRoute>
-      <NotesContent />
-    </ProtectedRoute>
-  );
+  return (<ProtectedRoute><NotesContent /></ProtectedRoute>);
 }
