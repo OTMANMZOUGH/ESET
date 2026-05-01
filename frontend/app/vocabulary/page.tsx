@@ -3,24 +3,15 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import Navbar from '@/components/Navbar';
+import LoadingSpinner from '@/components/LoadingSpinner';
 import { vocabularyApi } from '@/lib/api';
 import Link from 'next/link';
 
-interface VocabularyWord {
-  id: number;
-  word: string;
-  translation: string;
-  mastery_level: number;
-  next_review_at: string | null;
-}
+interface VocabularyWord { id: number; word: string; translation: string; mastery_level: number; next_review_at: string | null; }
+interface Stats { total: number; new: number; learning: number; mastered: number; due_today: number; }
 
-interface Stats {
-  total: number;
-  new: number;
-  learning: number;
-  mastered: number;
-  due_today: number;
-}
+const MASTERY_COLORS = ['bg-gray-300', 'bg-red-400', 'bg-orange-400', 'bg-yellow-400', 'bg-lime-400', 'bg-green-500'];
 
 function VocabularyContent() {
   const { token } = useAuth();
@@ -33,188 +24,123 @@ function VocabularyContent() {
 
   const loadData = async () => {
     if (!token) return;
-
     try {
       const [dueResponse, statsResponse] = await Promise.all([
         vocabularyApi.getDue(token, 20),
         vocabularyApi.getStats(token),
       ]);
-
       setDueWords(dueResponse.data);
       setStats(statsResponse.data);
-    } catch (error) {
-      console.error('Error loading vocabulary:', error);
-    } finally {
-      setLoading(false);
-    }
+    } catch (error) { console.error('Error loading vocabulary:', error); }
+    finally { setLoading(false); }
   };
 
-  useEffect(() => {
-    loadData();
-  }, [token]);
+  useEffect(() => { loadData(); }, [token]);
 
   const handleReview = async (correct: boolean) => {
     if (!token || !currentWord) return;
-
     setReviewing(true);
     try {
       await vocabularyApi.review(token, currentWord.id, correct);
-
-      // Move to next word
       if (currentIndex < dueWords.length - 1) {
-        setCurrentIndex(currentIndex + 1);
-        setShowAnswer(false);
+        setCurrentIndex(currentIndex + 1); setShowAnswer(false);
       } else {
-        // Finished all reviews
-        await loadData();
-        setCurrentIndex(0);
-        setShowAnswer(false);
+        await loadData(); setCurrentIndex(0); setShowAnswer(false);
       }
-    } catch (error) {
-      console.error('Error reviewing word:', error);
-    } finally {
-      setReviewing(false);
-    }
+    } catch (error) { console.error('Error reviewing:', error); }
+    finally { setReviewing(false); }
   };
 
   const currentWord = dueWords[currentIndex];
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-gray-500">Loading vocabulary...</div>
-      </div>
-    );
+    return <div className="min-h-screen bg-[var(--cream)] flex items-center justify-center"><LoadingSpinner message="Loading vocabulary..." /></div>;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center">
-              <Link href="/dashboard" className="text-2xl font-bold text-indigo-600">
-                ESET
-              </Link>
-              <span className="ml-4 text-gray-600">/ Vocabulary Review</span>
-            </div>
-          </div>
-        </div>
-      </nav>
+    <div className="min-h-screen bg-[var(--cream)] tile-pattern">
+      <Navbar breadcrumb="Vocabulary Review" />
 
-      <main className="max-w-4xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-        {/* Stats Overview */}
+      <main className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        {/* Stats bar */}
         {stats && (
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-            <div className="bg-white rounded-lg shadow p-4 text-center">
-              <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
-              <div className="text-sm text-gray-600">Total Words</div>
-            </div>
-            <div className="bg-white rounded-lg shadow p-4 text-center">
-              <div className="text-2xl font-bold text-blue-600">{stats.new}</div>
-              <div className="text-sm text-gray-600">New</div>
-            </div>
-            <div className="bg-white rounded-lg shadow p-4 text-center">
-              <div className="text-2xl font-bold text-yellow-600">{stats.learning}</div>
-              <div className="text-sm text-gray-600">Learning</div>
-            </div>
-            <div className="bg-white rounded-lg shadow p-4 text-center">
-              <div className="text-2xl font-bold text-green-600">{stats.mastered}</div>
-              <div className="text-sm text-gray-600">Mastered</div>
-            </div>
-            <div className="bg-white rounded-lg shadow p-4 text-center">
-              <div className="text-2xl font-bold text-indigo-600">{stats.due_today}</div>
-              <div className="text-sm text-gray-600">Due Today</div>
-            </div>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-8 stagger-children">
+            {[
+              { label: 'Total', value: stats.total, color: 'text-[var(--navy)]' },
+              { label: 'New', value: stats.new, color: 'text-blue-600' },
+              { label: 'Learning', value: stats.learning, color: 'text-[var(--saffron-dark)]' },
+              { label: 'Mastered', value: stats.mastered, color: 'text-[var(--success)]' },
+              { label: 'Due Today', value: stats.due_today, color: 'text-[var(--terracotta)]' },
+            ].map(s => (
+              <div key={s.label} className="glass rounded-xl p-4 text-center border border-[var(--border)] animate-fade-in-up">
+                <div className={`text-2xl font-bold ${s.color}`}>{s.value}</div>
+                <div className="text-xs font-medium text-[var(--warm-gray)] mt-0.5">{s.label}</div>
+              </div>
+            ))}
           </div>
         )}
 
-        {/* Flashcard Review */}
+        {/* Flashcard */}
         {dueWords.length > 0 ? (
-          <div className="bg-white rounded-lg shadow-lg p-8">
-            <div className="mb-6 text-center text-sm text-gray-500">
+          <div className="animate-scale-in">
+            <div className="text-center mb-4 text-sm text-[var(--warm-gray)] font-medium">
               Card {currentIndex + 1} of {dueWords.length}
             </div>
 
-            <div className="min-h-[300px] flex flex-col items-center justify-center">
-              <div className="mb-8">
-                <div className="text-sm text-gray-500 mb-2">Spanish</div>
-                <div className="text-5xl font-bold text-gray-900 text-center">
-                  {currentWord.word}
+            <div className="perspective">
+              <div className={`flip-card-inner ${showAnswer ? 'flipped' : ''}`} style={{ minHeight: '340px', position: 'relative' }}>
+                {/* Front */}
+                <div className="flip-card-front absolute inset-0 glass rounded-2xl border border-[var(--border)] shadow-lg flex flex-col items-center justify-center p-8">
+                  <p className="text-sm font-medium text-[var(--warm-gray)] uppercase tracking-wider mb-4">Spanish</p>
+                  <h2 className="font-[family-name:var(--font-playfair)] text-5xl sm:text-6xl font-bold text-[var(--navy)] mb-6">{currentWord.word}</h2>
+                  {/* Mastery dots */}
+                  <div className="flex gap-1.5">
+                    {[0, 1, 2, 3, 4].map(i => (
+                      <div key={i} className={`w-2.5 h-2.5 rounded-full transition-all ${i < currentWord.mastery_level ? MASTERY_COLORS[currentWord.mastery_level] : 'bg-[var(--sand)]'}`} />
+                    ))}
+                  </div>
+                  <button onClick={() => setShowAnswer(true)}
+                    className="mt-8 w-full max-w-xs py-3.5 bg-gradient-to-r from-[var(--terracotta)] to-[var(--terracotta-light)] text-white font-semibold rounded-xl shadow-md hover:shadow-lg hover:scale-[1.01] active:scale-[0.99] transition-all">
+                    Reveal Answer
+                  </button>
                 </div>
-              </div>
 
-              {showAnswer && (
-                <div className="mb-8">
-                  <div className="text-sm text-gray-500 mb-2 text-center">Translation</div>
-                  <div className="text-3xl text-indigo-600 text-center">
-                    {currentWord.translation}
+                {/* Back */}
+                <div className="flip-card-back absolute inset-0 glass rounded-2xl border border-[var(--border)] shadow-lg flex flex-col items-center justify-center p-8">
+                  <p className="text-sm font-medium text-[var(--warm-gray)] uppercase tracking-wider mb-2">Spanish</p>
+                  <h2 className="font-[family-name:var(--font-playfair)] text-4xl font-bold text-[var(--navy)] mb-4">{currentWord.word}</h2>
+                  <div className="w-16 h-0.5 bg-[var(--sand)] rounded-full mb-4" />
+                  <p className="text-sm font-medium text-[var(--warm-gray)] uppercase tracking-wider mb-2">Translation</p>
+                  <h3 className="text-3xl font-bold text-[var(--terracotta)] mb-8">{currentWord.translation}</h3>
+                  <div className="grid grid-cols-2 gap-3 w-full max-w-xs">
+                    <button onClick={() => handleReview(false)} disabled={reviewing}
+                      className="py-3 bg-[var(--error-bg)] text-[var(--error)] border border-red-200 font-semibold rounded-xl hover:bg-red-100 transition-all disabled:opacity-50">
+                      {reviewing ? '...' : 'Again ✕'}
+                    </button>
+                    <button onClick={() => handleReview(true)} disabled={reviewing}
+                      className="py-3 bg-[var(--success-bg)] text-[var(--success)] border border-green-200 font-semibold rounded-xl hover:bg-green-100 transition-all disabled:opacity-50">
+                      {reviewing ? '...' : 'Good ✓'}
+                    </button>
                   </div>
                 </div>
-              )}
-            </div>
-
-            {!showAnswer ? (
-              <button
-                onClick={() => setShowAnswer(true)}
-                className="w-full py-3 px-4 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 font-medium"
-              >
-                Show Answer
-              </button>
-            ) : (
-              <div className="grid grid-cols-2 gap-4">
-                <button
-                  onClick={() => handleReview(false)}
-                  disabled={reviewing}
-                  className="py-3 px-4 bg-red-600 text-white rounded-md hover:bg-red-700 font-medium disabled:opacity-50"
-                >
-                  {reviewing ? 'Processing...' : 'Again'}
-                </button>
-                <button
-                  onClick={() => handleReview(true)}
-                  disabled={reviewing}
-                  className="py-3 px-4 bg-green-600 text-white rounded-md hover:bg-green-700 font-medium disabled:opacity-50"
-                >
-                  {reviewing ? 'Processing...' : 'Good'}
-                </button>
               </div>
-            )}
-
-            <div className="mt-4 text-center text-sm text-gray-500">
-              Mastery Level: {currentWord.mastery_level}/5
             </div>
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow-lg p-12 text-center">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">
-              No words due for review! 🎉
-            </h2>
-            <p className="text-gray-600 mb-6">
-              You've completed all your vocabulary reviews for now.
-            </p>
-            <Link
-              href="/reader"
-              className="inline-block px-6 py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-            >
+          <div className="glass rounded-2xl p-12 text-center border border-[var(--border)] shadow-lg animate-scale-in">
+            <div className="text-5xl mb-4">🎉</div>
+            <h2 className="font-[family-name:var(--font-playfair)] text-2xl font-bold text-[var(--navy)] mb-3">All caught up!</h2>
+            <p className="text-[var(--warm-gray)] mb-6">No words due for review right now.</p>
+            <Link href="/reader" className="inline-block px-6 py-3 bg-gradient-to-r from-[var(--terracotta)] to-[var(--terracotta-light)] text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition-all">
               Read to discover new words
             </Link>
           </div>
         )}
-
-        <div className="mt-8 text-center">
-          <Link href="/dashboard" className="text-indigo-600 hover:text-indigo-800">
-            ← Back to Dashboard
-          </Link>
-        </div>
       </main>
     </div>
   );
 }
 
 export default function VocabularyPage() {
-  return (
-    <ProtectedRoute>
-      <VocabularyContent />
-    </ProtectedRoute>
-  );
+  return (<ProtectedRoute><VocabularyContent /></ProtectedRoute>);
 }
